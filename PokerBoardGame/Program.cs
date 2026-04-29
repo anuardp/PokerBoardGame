@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using PokerBoardGame;
 
 class Program
 {
@@ -151,7 +152,7 @@ class Program
         Console.WriteLine($"Current bet to call: {toCall}");
         Console.WriteLine("Actions: (f)old, (c)call, (r)aise, (a)ll-in");
         Console.Write("Choose: ");
-        string input = Console.ReadLine()?.ToLower();
+        string? input = Console.ReadLine()?.ToLower();
 
         PlayerAction action;
         int amount = 0;
