@@ -41,6 +41,8 @@ public class Game
     public IPlayer GetCurrentPlayer() => _players[_currentPlayerIndex];
     public IPlayer GetSBlindPlayer() => _players[_smallBlindIndex];
     public IPlayer GetBBlindPlayer() => _players[_bigBlindIndex];
+    public List<IPot> GetPots() => _pots;
+    
     public Dictionary<IPlayer, List<ICard>> GetPlayerHands() => _playerHands;
     
 

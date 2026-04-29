@@ -79,7 +79,6 @@ public class Game_PlaceBetsShould
     [Test]
     public void PlaceBet_ReducesPlayerChipsAndIncreasesBet()
     {
-        
         List<IPlayer> players = new List<IPlayer>();
         players.Add(new Player("1", "A", "human"));
         players.Add(new Player("2", "B", "human"));
