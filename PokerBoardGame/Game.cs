@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Collections.Generic;
+using Serilog;
+using Serilog.Context;
 
 namespace PokerBoardGame;
 
@@ -130,6 +132,7 @@ public class Game
 
     public void InitializeDeck()
     {
+        Log.Information("Initializing deck");
         if (_deck == null) _deck = new List<ICard>();
         _deck.Clear();
         foreach (Suit suit in Enum.GetValues<Suit>())
@@ -139,12 +142,14 @@ public class Game
                 _deck.Add(new Card(suit, rank));
             }
         ShuffleDeck(_deck);
+        Log.Information("Deck initialized with 52 cards and shuffled");
         }
     }
 
 
     public void ShuffleDeck(List<ICard> deck)
     {   
+        Log.Information("Shuffling deck with {CardCount} cards", deck.Count);
         Random rng = new Random();
         int totalCards = deck.Count;
 
@@ -158,38 +163,55 @@ public class Game
             int j = rng.Next(i+1);
             (deck[i], deck[j]) = (deck[j], deck[i]);
         }
+        Log.Debug("Deck shuffled twice.");
     }
     
     public ICard DrawCard() //logic untuk draw kartu, selalu ambil dari yang paling atas setelah di-shuffle
     {
         ICard topCard = _deck.First();
         _deck.RemoveAt(0);
+        Log.Verbose("Remaining deck size: {DeckSize}", _deck.Count);
         return topCard;
     }
 
     public void ResetDeck()
     {
+        Log.Information("Resetting deck. Previous deck size: {DeckSize}", _deck?.Count ?? 0);
         _deck.Clear();
+        Log.Debug("Deck cleared");
         InitializeDeck();
+        Log.Debug("Deck has been initialized again");
     }
 
     public void AddCardToBoard(List<ICard> board, GamePhase phase) //5 buah kartu ke atas board dari deck
     {
+        Log.Debug("AddCardToBoard called with phase {Phase}, current board count {BoardCount}", phase, board.Count);
         if(phase == GamePhase.Flop)
         {
             for(int i=0; i < 3; i++)board.Add(DrawCard());
+            Log.Information("Flop: added 3 cards to board. New board count: {BoardCount}", board.Count);
         }
         else if(phase == GamePhase.Turn || phase == GamePhase.River)
+        {    
             board.Add(DrawCard());
+            Log.Information("{Phase}: added 1 card to board. New board count: {BoardCount}", phase, board.Count);
+        }
+        else
+        {
+            Log.Warning("AddCardToBoard called with unexpected phase {Phase}, no cards added", phase);
+        }
     }
 
     public void ResetBoard() //Reset kartu di board -> Setelah satu sesi permainan berakhir 
     {
+        Log.Information("Resetting board. Previous board had {CardCount} cards", _board.Count);
         _board.Clear();
+        Log.Debug("Board cleared");
     }
 
     public void PostBlinds()
     { 
+        Log.Information("Posting blinds. Small blind: {SmallBlind}, Big blind: {BigBlind}", SmallBlind, BigBlind);
         IPlayer smallBlindPlayer = _players[_smallBlindIndex];
         IPlayer bigBlindPlayer = _players[_bigBlindIndex];
 
@@ -202,10 +224,12 @@ public class Game
             if (actualSmall < smallBlindAmount) 
                 _playerAllIn[smallBlindPlayer] = true;
             PlaceBet(smallBlindPlayer, actualSmall);
+            Log.Information("Small blind {PlayerName} posts {Amount} chips", smallBlindPlayer.Name, actualSmall);
         }
         else
         {
             Fold(smallBlindPlayer);
+            Log.Warning("Small blind {PlayerName} has no chips and folds", smallBlindPlayer.Name);
         }
 
         // Big blind
@@ -218,14 +242,17 @@ public class Game
             PlaceBet(bigBlindPlayer, actualBig);
             
             _currentBetAmount = actualBig;
+            Log.Information("Big blind {PlayerName} posts {Amount} chips. Current bet set to {CurrentBet}", bigBlindPlayer.Name, actualBig, _currentBetAmount);
         }
         else
         {
             Fold(bigBlindPlayer);
+            Log.Warning("Big blind {PlayerName} has no chips and folds", bigBlindPlayer.Name);
         }
     }
     public void DealHoleCards() // Bagi 2 kartu ke masing-masing player
     {
+        Log.Information("Dealing hole cards to {PlayerCount} players", _playerHands.Keys.Count);
         int i = 0;
         while (i < 2)
         {
@@ -235,6 +262,7 @@ public class Game
             }   
             i++;
         }
+        Log.Debug("Hole cards dealt. Each player now has 2 cards.");
     }
     
 
@@ -248,6 +276,7 @@ public class Game
 
     public void MoveToNextPhase() // Pindah ke fase ronde berikutnya (misal dari Flop ke Turn, Turn ke River)
     {
+        Log.Debug("MoveToNextPhase called. Current phase: {Phase}", _phase);
         if(_phase == GamePhase.PreFlop) _phase = GamePhase.Flop;
         else if(_phase == GamePhase.Flop) _phase = GamePhase.Turn;
         else if(_phase == GamePhase.Turn) _phase = GamePhase.River;
@@ -256,6 +285,7 @@ public class Game
         ResetBettingRound();
 
         OnPhaseChanged?.Invoke(_phase);
+        Log.Information("Phase moved to {NewPhase}", _phase);
     }
     public void Fold(IPlayer player) //kasih tag fold ke player (player tidak akan bisa bet lagi untuk keseluruhan ronde permainan dan gak bisa menangin chip)
     {
@@ -571,54 +601,66 @@ public class Game
 
     public void AwardPot()
     {
+        Log.Information("AwardPot called. Total pots: {PotCount}, total amount: {TotalAmount}", _pots.Count, _pots.Sum(p => p.Amount));
+
         foreach (IPot pot in _pots)
         {
             if (pot.Amount == 0) continue;
             List<IPlayer> eligibleWinners = GetWinners().Where(w => pot.EligiblePlayers.Contains(w)).ToList();
-            if (eligibleWinners.Count == 0) continue;
+            if (eligibleWinners.Count == 0)
+            {
+                Log.Warning("Pot with amount {PotAmount} has no eligible winners, skipping", pot.Amount);
+                continue;
+            }
             
             int share = pot.Amount / eligibleWinners.Count;
             int remainder = pot.Amount % eligibleWinners.Count;
+            Log.Information("Awarding pot {PotAmount} to {WinnerCount} winner(s) - share {Share}, remainder {Remainder}", pot.Amount, eligibleWinners.Count, share, remainder);
             
             for (int i = 0; i < eligibleWinners.Count; i++)
             {
                 int winnings = share + (i == 0 ? remainder : 0);
                 // Tambahin chip ke player yg menang
                 _playerChips[eligibleWinners[i]].AddRange(ConvertToChips(winnings));
+                Log.Debug("Player {PlayerName} wins {Winnings} chips from pot", eligibleWinners[i].Name, winnings);
             }
             pot.Amount = 0;
         }
         _pots.Clear();
+        Log.Debug("All pots cleared after award");
     }
 
     //Execute setelah 1 sesi game selesai
     public void StartNewRound() 
     {
-        ResetDeck();
-        ResetBoard();
-        
-        Random rng = new Random();
-        _dealerIndex = rng.Next(0, _players.Count);
-        _smallBlindIndex = (_dealerIndex + 1) % _players.Count();
-        _bigBlindIndex = (_dealerIndex + 2) % _players.Count();
-        _currentPlayerIndex = (_bigBlindIndex + 1) % _players.Count;
-        
-        _currentBetAmount = 0;
-        _phase = GamePhase.PreFlop;  
-        _pots.Clear();
-        _pots.Add(new Pot(_players.ToList(), 0));
-        
-        foreach(IPlayer p in _players)
+        using (LogContext.PushProperty("RoundId", Guid.NewGuid()))
         {
-            _playerHands[p].Clear();
-            _playerBets[p] = 0;
-            _playerFolded[p] = false;
-            _playerAllIn[p] = false;
+            Log.Information("Starting new round");
+            ResetDeck();
+            ResetBoard();
+            
+            Random rng = new Random();
+            _dealerIndex = rng.Next(0, _players.Count);
+            _smallBlindIndex = (_dealerIndex + 1) % _players.Count();
+            _bigBlindIndex = (_dealerIndex + 2) % _players.Count();
+            _currentPlayerIndex = (_bigBlindIndex + 1) % _players.Count;
+            
+            _currentBetAmount = 0;
+            _phase = GamePhase.PreFlop;  
+            _pots.Clear();
+            _pots.Add(new Pot(_players.ToList(), 0));
+            
+            foreach(IPlayer p in _players)
+            {
+                _playerHands[p].Clear();
+                _playerBets[p] = 0;
+                _playerFolded[p] = false;
+                _playerAllIn[p] = false;
+            }
+            ResetBettingRound();
+            DealHoleCards();
+            PostBlinds();
         }
-        ResetBettingRound();
-        DealHoleCards();
-        PostBlinds();
-
     }
     private void ResetBettingRound()
     {

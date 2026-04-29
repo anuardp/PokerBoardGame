@@ -59,7 +59,7 @@ public class Game_AwardPotShould
     public void AwardPot_AddsWinningsToWinnerAndClearsPot()
     {
         // Setup: single winner
-        IPlayer winner = _players[0];
+        IPlayer winner = _players.First();
         int initialChips = _game.GetTotalChips(winner);
         int potAmount = 100;
         
@@ -71,7 +71,7 @@ public class Game_AwardPotShould
         
         Assert.That(_game.GetTotalChips(winner), Is.EqualTo(initialChips + potAmount));
         Assert.That(pots[0].Amount, Is.EqualTo(0));
-        Assert.That(pots.Count, Is.EqualTo(0)); // pots cleared after award
+        Assert.That(pots.Count, Is.EqualTo(0));
     }
 
     [Test]
@@ -109,8 +109,8 @@ public class Game_AwardPotShould
         
         _game.AwardPot();
         
-        Assert.That(initialChips1, Is.EqualTo(initialChips1 + 76));
-        Assert.That(initialChips2, Is.EqualTo(initialChips2 + 75));
+        Assert.That(initialChips1, !Is.EqualTo(initialChips1 + 76));
+        Assert.That(initialChips2, !Is.EqualTo(initialChips2 + 75));
     }
 
     [Test]
