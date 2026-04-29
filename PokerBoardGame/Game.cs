@@ -36,6 +36,7 @@ public class Game
     public GamePhase Phase => _phase;
 
     public List<ICard> GetBoard() => _board;
+    public List<ICard> GetDeck() => _deck;
     public GamePhase GetPhase() => _phase;
     public IPlayer GetCurrentPlayer() => _players[_currentPlayerIndex];
     public IPlayer GetSBlindPlayer() => _players[_smallBlindIndex];
@@ -159,7 +160,7 @@ public class Game
     
     public ICard DrawCard() //logic untuk draw kartu, selalu ambil dari yang paling atas setelah di-shuffle
     {
-        ICard topCard = _deck[0];
+        ICard topCard = _deck.First();
         _deck.RemoveAt(0);
         return topCard;
     }
@@ -252,7 +253,7 @@ public class Game
 
         ResetBettingRound();
 
-        OnPhaseChanged.Invoke(_phase);
+        OnPhaseChanged?.Invoke(_phase);
     }
     public void Fold(IPlayer player) //kasih tag fold ke player (player tidak akan bisa bet lagi untuk keseluruhan ronde permainan dan gak bisa menangin chip)
     {
