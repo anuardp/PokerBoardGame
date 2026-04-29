@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 
 [TestFixture]
-public class Game_DealHoleCardsDrawed
+public class Game_DealHoleCardsDrawed //GameTests
 {
     private Game _game;
     [SetUp]
