@@ -69,7 +69,7 @@ public class Game
         foreach(IPlayer p in players)
         {
             _playerHands[p] = new List<ICard>();
-            _playerChips[p] = AmountToChips(1000);
+            _playerChips[p] = ConvertToChips(1000);
             _playerBets[p] = 0;
             _playerFolded[p] = false;
             _playerAllIn[p] = false;
@@ -78,7 +78,7 @@ public class Game
             _phase = GamePhase.PreFlop;
         }
     }
-    private List<IChip> AmountToChips(int amount)
+    private List<IChip> ConvertToChips(int amount)
     {
         List<IChip> chips = new List<IChip>();
         int smallestChipValue = 10;
@@ -98,7 +98,7 @@ public class Game
     {
         List<IChip> sorted = playerChips.OrderByDescending(c => c.Value).ToList();
         List<IChip> toRemove = new List<IChip>();
-        int remaining = betAmount;
+        int remaining = betAmount;  
 
         foreach(IChip chip in sorted)
         {
@@ -262,8 +262,6 @@ public class Game
     }
     public void Call(IPlayer player)  //Bet sesuai dengan jumlah bet dari lawan lainnya
     {
-        
-
         int toCall = _currentBetAmount - _playerBets[player];        
         int chips = GetTotalChips(player);
         if (chips < toCall)
@@ -584,7 +582,7 @@ public class Game
             {
                 int winnings = share + (i == 0 ? remainder : 0);
                 // Tambahin chip ke player yg menang
-                _playerChips[eligibleWinners[i]].AddRange(AmountToChips(winnings));
+                _playerChips[eligibleWinners[i]].AddRange(ConvertToChips(winnings));
             }
             pot.Amount = 0;
         }
